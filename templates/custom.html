@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="{{ metadata.language | default('zh-CN') }}">
+<head>
+<meta charset="UTF-8">
+<title>{{ title }}</title>
+<style>
+  /* ===== A4 打印适配 ===== */
+  @page {
+    size: A4;
+    margin: 20mm;
+    @bottom-center {
+      content: counter(page) " / " counter(pages);
+      font-size: 9pt;
+      color: #aaa;
+    }
+  }
+
+  /* ===== 基础排版 ===== */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: "Microsoft YaHei", "Noto Sans SC", "Helvetica Neue", Arial, sans-serif;
+    font-size: 11pt;
+    line-height: 1.8;
+    color: #333;
+    background: #fff;
+    max-width: 100%;
+    padding: 0;
+  }
+
+  /* ===== 标题 ===== */
+  .doc-title {
+    font-size: 24pt;
+    color: #1a1a2e;
+    text-align: center;
+    margin: 20px 0 30px 0;
+    padding-bottom: 12px;
+    border-bottom: 2px solid #4361ee;
+  }
+
+  h1 {
+    font-size: 20pt;
+    color: #1a1a2e;
+    margin: 30px 0 12px 0;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 6px;
+  }
+  h2 {
+    font-size: 15pt;
+    color: #2d3436;
+    margin: 24px 0 10px 0;
+  }
+  h3 {
+    font-size: 12pt;
+    color: #555;
+    margin: 18px 0 8px 0;
+  }
+
+  p { margin: 8px 0; text-align: justify; }
+
+  /* ===== 列表 ===== */
+  ul { margin: 8px 0 8px 24px; }
+  ol { margin: 8px 0 8px 24px; }
+  li { margin: 4px 0; }
+
+  /* ===== 表格 ===== */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 10pt;
+  }
+  th, td {
+    border: 1px solid #ddd;
+    padding: 8px 10px;
+    text-align: left;
+    vertical-align: top;
+  }
+  th { background: #f5f5f5; font-weight: bold; }
+  tr:nth-child(even) { background: #fafafa; }
+
+  /* ===== 代码块 ===== */
+  pre {
+    background: #f8f8f8;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    padding: 12px 16px;
+    overflow-x: auto;
+    font-size: 10pt;
+    font-family: "Consolas", "Courier New", monospace;
+    margin: 12px 0;
+    line-height: 1.5;
+  }
+  code {
+    background: #f0f0f0;
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-size: 10pt;
+    font-family: "Consolas", "Courier New", monospace;
+  }
+
+  /* ===== 图片 ===== */
+  img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 16px auto;
+  }
+  figure {
+    text-align: center;
+    margin: 20px 0;
+    page-break-inside: avoid;
+  }
+  figcaption {
+    font-size: 9pt;
+    color: #888;
+    margin-top: 6px;
+  }
+
+  /* ===== 引用 ===== */
+  blockquote {
+    border-left: 4px solid #4361ee;
+    padding: 10px 16px;
+    margin: 12px 0;
+    background: #f8f9ff;
+    color: #555;
+    font-style: italic;
+  }
+
+  /* ===== 通用框 ===== */
+  .box {
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 16px 20px;
+    margin: 16px 0;
+    page-break-inside: avoid;
+  }
+  .box-info {
+    border-left: 4px solid #2196f3;
+    background: #e3f2fd;
+  }
+  .box-warning {
+    border-left: 4px solid #ff9800;
+    background: #fff8e1;
+  }
+  .box-danger {
+    border-left: 4px solid #f44336;
+    background: #ffebee;
+  }
+  .box-success {
+    border-left: 4px solid #4caf50;
+    background: #e8f5e9;
+  }
+
+  /* ===== 灵活网格（CSS Grid） ===== */
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 16px 0;
+  }
+  .grid-3 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+    margin: 16px 0;
+  }
+
+  /* ===== 分隔线 ===== */
+  hr {
+    border: none;
+    border-top: 1px solid #ddd;
+    margin: 24px 0;
+  }
+
+  /* ===== 页脚 ===== */
+  .doc-footer {
+    border-top: 1px solid #ddd;
+    padding-top: 12px;
+    margin-top: 40px;
+    font-size: 9pt;
+    color: #aaa;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+
+  <!-- ===== 标题 ===== -->
+  {% if title %}
+  <div class="doc-title">{{ title }}</div>
+  {% endif %}
+
+  <!-- ===== 循环渲染所有内容块 ===== -->
+  {% for entry in sections %}
+  <div class="content-block" id="entry-{{ loop.index }}">
+
+    {% if entry.type == 'heading' %}
+      {% set lvl = entry.level | default(2) %}
+      {% if lvl <= 1 %}
+      <h1>{{ entry.body }}</h1>
+      {% elif lvl == 2 %}
+      <h2>{{ entry.body }}</h2>
+      {% else %}
+      <h3>{{ entry.body }}</h3>
+      {% endif %}
+
+    {% elif entry.type == 'text' %}
+      <p>{{ entry.body }}</p>
+
+    {% elif entry.type == 'list' %}
+      {% if entry.ordered %}
+      <ol>
+        {% for item in entry.list_items %}
+        <li>{{ item }}</li>
+        {% endfor %}
+      </ol>
+      {% else %}
+      <ul>
+        {% for item in entry.list_items %}
+        <li>{{ item }}</li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+
+    {% elif entry.type == 'table' %}
+      <table>
+        {% if entry.columns %}
+        <thead>
+          <tr>
+            {% for cell in entry.columns[0] %}
+            <th>{{ cell }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in entry.columns[1:] %}
+          <tr>
+            {% for cell in row %}
+            <td>{{ cell }}</td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+        {% endif %}
+      </table>
+
+    {% elif entry.type == 'image' %}
+      <figure>
+        <img src="{{ entry.src }}" alt="{{ entry.alt | default('') }}">
+        {% if entry.caption %}
+        <figcaption>{{ entry.caption }}</figcaption>
+        {% endif %}
+      </figure>
+
+    {% elif entry.type == 'code' %}
+      <pre><code>{{ entry.body | safe }}</code></pre>
+
+    {% elif entry.type == 'blockquote' %}
+      <blockquote>{{ entry.body }}</blockquote>
+
+    {% elif entry.type == 'info' %}
+      <div class="box box-info">{{ entry.body }}</div>
+
+    {% elif entry.type == 'warning' %}
+      <div class="box box-warning">⚠️ {{ entry.body }}</div>
+
+    {% elif entry.type == 'danger' %}
+      <div class="box box-danger">🚫 {{ entry.body }}</div>
+
+    {% elif entry.type == 'success' %}
+      <div class="box box-success">✅ {{ entry.body }}</div>
+
+    {% elif entry.type == 'divider' %}
+      <hr>
+
+    {% elif entry.type == 'raw_html' %}
+      {{ entry.body | safe }}
+
+    {% elif entry.type == 'grid' %}
+      <div class="grid-{{ entry.columns | default(2) }}">
+        {% for cell in entry.cells %}
+        <div>{{ cell | safe }}</div>
+        {% endfor %}
+      </div>
+
+    {% else %}
+      <p>{{ entry.body | default('') }}</p>
+    {% endif %}
+
+  </div>
+  {% endfor %}
+
+  <!-- ===== 页脚 ===== -->
+  <div class="doc-footer">
+    <p>{{ title }}</p>
+    {% if metadata.author %}<p>Author: {{ metadata.author }}</p>{% endif %}
+    {% if metadata.date %}<p>{{ metadata.date }}</p>{% endif %}
+  </div>
+
+</body>
+</html>

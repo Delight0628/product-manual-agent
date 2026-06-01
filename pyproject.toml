@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "product-manual-agent"
+version = "0.1.0"
+description = "跨境电商多语言产品说明书生成器"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+    "playwright",
+    "reportlab",
+    "weasyprint",
+    "jinja2",
+    "deepl",
+    "openai",
+    "httpx",
+    "pydantic",
+    "python-multipart",
+    "aiofiles",
+    "fpdf2",
+    # === v2 新增: AI Agent ===
+    "langchain>=0.3",
+    "langchain-openai>=0.3",
+    "langgraph>=0.4",
+    "pypdf>=5.0",
+    "python-docx>=1.1",
+    "python-dotenv>=1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+]

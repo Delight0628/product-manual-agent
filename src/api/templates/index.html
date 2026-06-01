@@ -1,0 +1,1062 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>产品说明书生成器</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: #08090a;
+            color: #e1e4e8;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 24px;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            font-size: 14px;
+            color: #8b8d94;
+        }
+
+        /* Main Layout */
+        .main-layout {
+            display: grid;
+            grid-template-columns: 1fr 360px;
+            gap: 32px;
+            align-items: start;
+        }
+
+        /* Tab Component */
+        .tabs {
+            display: flex;
+            gap: 4px;
+            background: #1a1b1e;
+            border-radius: 12px;
+            padding: 4px;
+            margin-bottom: 24px;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 12px 16px;
+            border: none;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: transparent;
+            color: #8b8d94;
+        }
+
+        .tab-btn:hover {
+            color: #e1e4e8;
+        }
+
+        .tab-btn.active {
+            background: #5e6ad2;
+            color: #ffffff;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Card */
+        .card {
+            background: #1a1b1e;
+            border-radius: 16px;
+            padding: 24px;
+            border: 1px solid #2d2e32;
+        }
+
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 20px;
+        }
+
+        /* Input */
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            color: #8b8d94;
+            margin-bottom: 8px;
+        }
+
+        .input {
+            width: 100%;
+            padding: 12px 16px;
+            background: #0d0e10;
+            border: 1px solid #2d2e32;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 14px;
+            color: #e1e4e8;
+            outline: none;
+            transition: border-color 0.2s ease;
+        }
+
+        .input:focus {
+            border-color: #5e6ad2;
+        }
+
+        .input::placeholder {
+            color: #555659;
+        }
+
+        textarea.input {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        /* Language Pills */
+        .language-pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .lang-pill {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: #2d2e32;
+            color: #8b8d94;
+            border: 1px solid transparent;
+        }
+
+        .lang-pill:hover {
+            background: #3d3e42;
+        }
+
+        .lang-pill.selected {
+            background: #5e6ad2;
+            color: #ffffff;
+            border-color: #6e7ae2;
+        }
+
+        /* Format Pills */
+        .format-pills {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .format-pill {
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: #2d2e32;
+            color: #8b8d94;
+            border: 1px solid transparent;
+        }
+
+        .format-pill:hover {
+            background: #3d3e42;
+        }
+
+        .format-pill.selected {
+            background: #5e6ad2;
+            color: #ffffff;
+            border-color: #6e7ae2;
+        }
+
+        /* Button */
+        .btn-primary {
+            width: 100%;
+            padding: 12px 24px;
+            background: #5e6ad2;
+            color: #ffffff;
+            border: none;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary:hover {
+            background: #6e7ae2;
+        }
+
+        .btn-primary:disabled {
+            background: #3d3e42;
+            color: #555659;
+            cursor: not-allowed;
+        }
+
+        .btn-download {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: #2d2e32;
+            color: #e1e4e8;
+            border: 1px solid #3d3e42;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+        }
+
+        .btn-download:hover {
+            background: #3d3e42;
+        }
+
+        /* Progress Steps */
+        .progress-steps {
+            margin: 24px 0;
+            display: none;
+        }
+
+        .progress-steps.visible {
+            display: block;
+        }
+
+        .step {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 0;
+            border-bottom: 1px solid #2d2e32;
+        }
+
+        .step:last-child {
+            border-bottom: none;
+        }
+
+        .step-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            background: #2d2e32;
+            color: #555659;
+            transition: all 0.3s ease;
+        }
+
+        .step.active .step-icon {
+            background: #5e6ad2;
+            color: #ffffff;
+            animation: pulse 1.5s infinite;
+        }
+
+        .step.completed .step-icon {
+            background: #2ea043;
+            color: #ffffff;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        .step-info {
+            flex: 1;
+        }
+
+        .step-title {
+            font-size: 14px;
+            font-weight: 500;
+            color: #e1e4e8;
+        }
+
+        .step-desc {
+            font-size: 12px;
+            color: #555659;
+            margin-top: 2px;
+        }
+
+        .step.active .step-title {
+            color: #ffffff;
+        }
+
+        .step.completed .step-title {
+            color: #2ea043;
+        }
+
+        /* Status Message */
+        .status-message {
+            padding: 16px;
+            border-radius: 8px;
+            margin-top: 16px;
+            display: none;
+        }
+
+        .status-message.visible {
+            display: block;
+        }
+
+        .status-message.success {
+            background: rgba(46, 160, 67, 0.15);
+            border: 1px solid rgba(46, 160, 67, 0.3);
+            color: #2ea043;
+        }
+
+        .status-message.error {
+            background: rgba(248, 81, 73, 0.15);
+            border: 1px solid rgba(248, 81, 73, 0.3);
+            color: #f85149;
+        }
+
+        .status-message.info {
+            background: rgba(94, 106, 210, 0.15);
+            border: 1px solid rgba(94, 106, 210, 0.3);
+            color: #5e6ad2;
+        }
+
+        /* Demo Box */
+        .demo-box {
+            background: #1a1b1e;
+            border: 1px dashed #3d3e42;
+            border-radius: 12px;
+            padding: 16px;
+            margin-top: 20px;
+        }
+
+        .demo-box p {
+            font-size: 13px;
+            color: #8b8d94;
+            margin-bottom: 8px;
+        }
+
+        .demo-link {
+            color: #5e6ad2;
+            text-decoration: none;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .demo-link:hover {
+            text-decoration: underline;
+        }
+
+        /* Upload Zone */
+        .upload-zone {
+            border: 2px dashed #3d3e42;
+            border-radius: 12px;
+            padding: 40px 24px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-bottom: 20px;
+        }
+
+        .upload-zone:hover,
+        .upload-zone.dragover {
+            border-color: #5e6ad2;
+            background: rgba(94, 106, 210, 0.05);
+        }
+
+        .upload-zone-icon {
+            font-size: 40px;
+            margin-bottom: 12px;
+        }
+
+        .upload-zone-text {
+            font-size: 14px;
+            color: #8b8d94;
+            margin-bottom: 4px;
+        }
+
+        .upload-zone-hint {
+            font-size: 12px;
+            color: #555659;
+        }
+
+        .upload-zone input[type="file"] {
+            display: none;
+        }
+
+        /* File List */
+        .file-list {
+            max-height: 200px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+        }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 12px;
+            background: #0d0e10;
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+
+        .file-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .file-icon {
+            font-size: 18px;
+        }
+
+        .file-name {
+            font-size: 13px;
+            color: #e1e4e8;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .file-size {
+            font-size: 12px;
+            color: #555659;
+            margin-left: auto;
+            padding-left: 12px;
+        }
+
+        .file-delete {
+            background: none;
+            border: none;
+            color: #f85149;
+            cursor: pointer;
+            font-size: 16px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: background 0.2s ease;
+        }
+
+        .file-delete:hover {
+            background: rgba(248, 81, 73, 0.15);
+        }
+
+        /* Sidebar */
+        .sidebar {
+            position: sticky;
+            top: 24px;
+        }
+
+        .sidebar .card {
+            padding: 20px;
+        }
+
+        .history-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+
+        .history-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: #ffffff;
+        }
+
+        .history-badge {
+            background: #5e6ad2;
+            color: #ffffff;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+
+        .history-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .history-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 12px;
+            background: #0d0e10;
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+
+        .history-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .history-name {
+            font-size: 13px;
+            color: #e1e4e8;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .history-meta {
+            font-size: 11px;
+            color: #555659;
+            margin-top: 2px;
+        }
+
+        .history-empty {
+            text-align: center;
+            padding: 24px;
+            color: #555659;
+            font-size: 13px;
+        }
+
+        /* Loading Spinner */
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: #ffffff;
+            animation: spin 0.8s linear infinite;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Responsive */
+        @media (max-width: 900px) {
+            .main-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                position: static;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📋 产品说明书生成器</h1>
+            <p>从亚马逊链接或本地素材，一键生成多语言产品说明书</p>
+        </div>
+
+        <div class="main-layout">
+            <!-- Left Panel -->
+            <div class="left-panel">
+                <!-- Tabs -->
+                <div class="tabs">
+                    <button class="tab-btn active" onclick="switchTab('upload')">📎 素材上传 + AI 排版</button>
+                    <button class="tab-btn" onclick="switchTab('amazon')">🔗 亚马逊链接</button>
+                </div>
+
+                <!-- Tab 1: 素材上传 (默认激活) -->
+                <div id="tab-upload" class="tab-content active">
+                    <div class="card">
+                        <div class="upload-zone" id="upload-zone">
+                            <div class="upload-zone-icon">📁</div>
+                            <div class="upload-zone-text">拖拽文件到此处，或点击选择文件</div>
+                            <div class="upload-zone-hint">支持 PDF、Word、TXT、图片格式，可多文件上传</div>
+                            <input type="file" id="file-input" multiple 
+                                   accept=".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg">
+                        </div>
+
+                        <div class="file-list" id="file-list"></div>
+
+                        <div class="input-group">
+                            <label class="input-label">AI 指令</label>
+                            <textarea class="input" id="ai-prompt" rows="3"
+                                      placeholder="告诉我你想要什么格式、怎么排版，例如：帮我把这些素材整理成一份产品说明书，输出 PDF 格式"></textarea>
+                        </div>
+
+                        <div class="input-group">
+                            <label class="input-label">输出格式</label>
+                            <div class="format-pills">
+                                <span class="format-pill selected" data-format="pdf" onclick="selectFormat(this)">📄 PDF</span>
+                                <span class="format-pill" data-format="word" onclick="selectFormat(this)">📝 Word</span>
+                            </div>
+                        </div>
+
+                        <button class="btn-primary" id="generate-material-btn" onclick="generateFromMaterial()" disabled>
+                            🤖 开始 AI 生成
+                        </button>
+
+                        <!-- Progress Steps -->
+                        <div class="progress-steps" id="material-progress-steps">
+                            <div class="step" id="mstep-1">
+                                <div class="step-icon">1</div>
+                                <div class="step-info">
+                                    <div class="step-title">上传素材</div>
+                                    <div class="step-desc">正在上传文件...</div>
+                                </div>
+                            </div>
+                            <div class="step" id="mstep-2">
+                                <div class="step-icon">2</div>
+                                <div class="step-info">
+                                    <div class="step-title">AI 分析与排版</div>
+                                    <div class="step-desc">AI 正在分析素材并排版...</div>
+                                </div>
+                            </div>
+                            <div class="step" id="mstep-3">
+                                <div class="step-icon">3</div>
+                                <div class="step-info">
+                                    <div class="step-title">生成文档</div>
+                                    <div class="step-desc">正在生成最终文档...</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Status Message -->
+                        <div class="status-message" id="material-status-message"></div>
+                    </div>
+                </div>
+
+                <!-- Tab 2: 亚马逊链接 -->
+                <div id="tab-amazon" class="tab-content">
+                    <div class="card">
+                        <div class="input-group">
+                            <label class="input-label">亚马逊产品链接</label>
+                            <input type="text" class="input" id="amazon-url" 
+                                   placeholder="https://www.amazon.com/dp/B0XXXXXXXXX">
+                        </div>
+
+                        <div class="input-group">
+                            <label class="input-label">目标语言</label>
+                            <div class="language-pills">
+                                <span class="lang-pill selected" data-lang="EN" onclick="toggleLang(this)">English</span>
+                                <span class="lang-pill" data-lang="DE" onclick="toggleLang(this)">Deutsch</span>
+                                <span class="lang-pill" data-lang="IT" onclick="toggleLang(this)">Italiano</span>
+                                <span class="lang-pill" data-lang="FR" onclick="toggleLang(this)">Français</span>
+                                <span class="lang-pill" data-lang="ES" onclick="toggleLang(this)">Español</span>
+                                <span class="lang-pill" data-lang="JP" onclick="toggleLang(this)">日本語</span>
+                            </div>
+                        </div>
+
+                        <button class="btn-primary" id="generate-btn" onclick="generateFromAmazon()">
+                            生成说明书
+                        </button>
+
+                        <!-- Progress Steps -->
+                        <div class="progress-steps" id="progress-steps">
+                            <div class="step" id="step-1">
+                                <div class="step-icon">1</div>
+                                <div class="step-info">
+                                    <div class="step-title">抓取产品信息</div>
+                                    <div class="step-desc">正在获取亚马逊产品数据...</div>
+                                </div>
+                            </div>
+                            <div class="step" id="step-2">
+                                <div class="step-icon">2</div>
+                                <div class="step-info">
+                                    <div class="step-title">翻译内容</div>
+                                    <div class="step-desc">AI 智能翻译产品描述...</div>
+                                </div>
+                            </div>
+                            <div class="step" id="step-3">
+                                <div class="step-icon">3</div>
+                                <div class="step-info">
+                                    <div class="step-title">生成 PDF</div>
+                                    <div class="step-desc">排版并生成产品说明书...</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Status Message -->
+                        <div class="status-message" id="status-message"></div>
+
+                        <!-- Demo Box -->
+                        <div class="demo-box">
+                            <p>💡 试试看：点击下方链接体验 Demo</p>
+                            <a class="demo-link" onclick="useDemo()">B0D4SG8CHY</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Sidebar -->
+            <div class="sidebar">
+                <div class="card">
+                    <div class="history-header">
+                        <span class="history-title">生成历史</span>
+                        <span class="history-badge" id="history-count">0</span>
+                    </div>
+                    <div class="history-list" id="history-list">
+                        <div class="history-empty">暂无生成记录</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State
+        let uploadedFiles = [];
+        let selectedLangs = ['EN'];
+        let outputFormat = 'pdf';
+        let currentTaskId = null;
+        let pollingInterval = null;
+
+        // Tab Switching
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById('tab-' + tab).classList.add('active');
+        }
+
+        // Language Toggle
+        function toggleLang(el) {
+            el.classList.toggle('selected');
+            const lang = el.dataset.lang;
+            if (el.classList.contains('selected')) {
+                if (!selectedLangs.includes(lang)) selectedLangs.push(lang);
+            } else {
+                selectedLangs = selectedLangs.filter(l => l !== lang);
+            }
+        }
+
+        // Format Selection
+        function selectFormat(el) {
+            document.querySelectorAll('.format-pill').forEach(pill => pill.classList.remove('selected'));
+            el.classList.add('selected');
+            outputFormat = el.dataset.format;
+        }
+
+        // Demo
+        function useDemo() {
+            document.getElementById('amazon-url').value = 'https://www.amazon.com/dp/B0D4SG8CHY';
+        }
+
+        // Show Status
+        function showStatus(elementId, type, message) {
+            const el = document.getElementById(elementId);
+            el.className = 'status-message visible ' + type;
+            el.textContent = message;
+        }
+
+        // Update Progress Steps
+        function updateSteps(containerId, currentStep) {
+            const steps = document.getElementById(containerId).querySelectorAll('.step');
+            steps.forEach((step, index) => {
+                step.classList.remove('active', 'completed');
+                if (index < currentStep - 1) {
+                    step.classList.add('completed');
+                } else if (index === currentStep - 1) {
+                    step.classList.add('active');
+                }
+            });
+        }
+
+        // Generate from Amazon
+        async function generateFromAmazon() {
+            const url = document.getElementById('amazon-url').value.trim();
+            if (!url) {
+                showStatus('status-message', 'error', '请输入亚马逊产品链接');
+                return;
+            }
+            if (selectedLangs.length === 0) {
+                showStatus('status-message', 'error', '请至少选择一种语言');
+                return;
+            }
+
+            const btn = document.getElementById('generate-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span>生成中...';
+
+            document.getElementById('progress-steps').classList.add('visible');
+            showStatus('status-message', 'info', '正在提交任务...');
+
+            try {
+                const response = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url, languages: selectedLangs })
+                });
+
+                if (!response.ok) throw new Error('提交失败');
+                const data = await response.json();
+                currentTaskId = data.task_id;
+
+                updateSteps('progress-steps', 1);
+                showStatus('status-message', 'info', '任务已提交，正在处理...');
+
+                pollTask(currentTaskId, 'progress-steps', 'status-message', 'generate-btn', '生成说明书');
+            } catch (err) {
+                showStatus('status-message', 'error', '错误: ' + err.message);
+                btn.disabled = false;
+                btn.textContent = '生成说明书';
+            }
+        }
+
+        // Poll Task Status
+        function pollTask(taskId, stepsId, statusId, btnId, btnText) {
+            if (pollingInterval) clearInterval(pollingInterval);
+
+            pollingInterval = setInterval(async () => {
+                try {
+                    const response = await fetch('/api/tasks/' + taskId);
+                    if (!response.ok) throw new Error('获取状态失败');
+                    
+                    const data = await response.json();
+
+                    if (data.progress) {
+                        updateSteps(stepsId, data.progress);
+                    }
+
+                    if (data.status === 'done' || data.status === 'completed') {
+                        clearInterval(pollingInterval);
+                        updateSteps(stepsId, 3);
+                        showStatus(statusId, 'success', '✅ ' + (data.message || '生成完成！'));
+                        
+                        const btn = document.getElementById(btnId);
+                        btn.disabled = false;
+                        btn.textContent = btnText;
+
+                        loadHistory();
+                    } else if (data.status === 'failed') {
+                        clearInterval(pollingInterval);
+                        showStatus(statusId, 'error', '❌ ' + (data.message || '生成失败'));
+                        
+                        const btn = document.getElementById(btnId);
+                        btn.disabled = false;
+                        btn.textContent = btnText;
+                    }
+                } catch (err) {
+                    console.error('Poll error:', err);
+                }
+            }, 2000);
+        }
+
+        // Upload Zone Events
+        const uploadZone = document.getElementById('upload-zone');
+        const fileInput = document.getElementById('file-input');
+
+        uploadZone.addEventListener('click', () => fileInput.click());
+
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('dragover');
+        });
+
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('dragover');
+        });
+
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            handleFiles(e.dataTransfer.files);
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            handleFiles(e.target.files);
+        });
+
+        // Handle Files
+        async function handleFiles(files) {
+            for (const file of files) {
+                await uploadFile(file);
+            }
+        }
+
+        // Upload Single File
+        async function uploadFile(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) throw new Error('上传失败');
+                const data = await response.json();
+
+                uploadedFiles.push({
+                    id: data.file_id,
+                    name: data.filename,
+                    size: data.size,
+                    type: data.content_type
+                });
+
+                renderFileList();
+                updateGenerateButton();
+            } catch (err) {
+                console.error('Upload error:', err);
+            }
+        }
+
+        // Render File List
+        function renderFileList() {
+            const list = document.getElementById('file-list');
+            if (uploadedFiles.length === 0) {
+                list.innerHTML = '';
+                return;
+            }
+
+            list.innerHTML = uploadedFiles.map((file, index) => `
+                <div class="file-item">
+                    <div class="file-info">
+                        <span class="file-icon">📎</span>
+                        <span class="file-name">${file.name}</span>
+                        <span class="file-size">${formatSize(file.size)}</span>
+                    </div>
+                    <button class="file-delete" onclick="removeFile(${index})">×</button>
+                </div>
+            `).join('');
+        }
+
+        // Remove File
+        function removeFile(index) {
+            uploadedFiles.splice(index, 1);
+            renderFileList();
+            updateGenerateButton();
+        }
+
+        // Format Size
+        function formatSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        }
+
+        // Update Generate Button
+        function updateGenerateButton() {
+            const btn = document.getElementById('generate-material-btn');
+            btn.disabled = uploadedFiles.length === 0;
+        }
+
+        // Generate from Material
+        async function generateFromMaterial() {
+            if (uploadedFiles.length === 0) {
+                showStatus('material-status-message', 'error', '请先上传文件');
+                return;
+            }
+
+            const prompt = document.getElementById('ai-prompt').value.trim();
+            if (!prompt) {
+                showStatus('material-status-message', 'error', '请输入 AI 指令');
+                return;
+            }
+
+            const btn = document.getElementById('generate-material-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span>生成中...';
+
+            document.getElementById('material-progress-steps').classList.add('visible');
+            showStatus('material-status-message', 'info', '正在提交任务...');
+
+            try {
+                const response = await fetch('/api/generate-material', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        prompt,
+                        file_ids: uploadedFiles.map(f => f.id),
+                        output_format: outputFormat
+                    })
+                });
+
+                if (!response.ok) throw new Error('提交失败');
+                const data = await response.json();
+                currentTaskId = data.task_id;
+
+                updateSteps('material-progress-steps', 1);
+                showStatus('material-status-message', 'info', '任务已提交，正在处理...');
+
+                pollTask(currentTaskId, 'material-progress-steps', 'material-status-message', 'generate-material-btn', '🤖 开始 AI 生成');
+            } catch (err) {
+                showStatus('material-status-message', 'error', '错误: ' + err.message);
+                btn.disabled = false;
+                btn.textContent = '🤖 开始 AI 生成';
+            }
+        }
+
+        // Load History
+        async function loadHistory() {
+            try {
+                const response = await fetch('/api/files');
+                if (!response.ok) throw new Error('获取历史失败');
+                
+                const data = await response.json();
+                const files = data.files || [];
+
+                document.getElementById('history-count').textContent = files.length;
+
+                const list = document.getElementById('history-list');
+                if (files.length === 0) {
+                    list.innerHTML = '<div class="history-empty">暂无生成记录</div>';
+                    return;
+                }
+
+                list.innerHTML = files.map(file => `
+                    <div class="history-item">
+                        <div class="history-info">
+                            <div class="history-name">📄 ${file.name}</div>
+                            <div class="history-meta">${formatSize(file.size)} · ${file.type || 'PDF'}</div>
+                        </div>
+                        <a href="/api/download/${encodeURIComponent(file.name)}" class="btn-download" download>
+                            下载
+                        </a>
+                    </div>
+                `).join('');
+            } catch (err) {
+                console.error('Load history error:', err);
+            }
+        }
+
+        // Init
+        document.addEventListener('DOMContentLoaded', () => {
+            loadHistory();
+        });
+    </script>
+</body>
+</html>

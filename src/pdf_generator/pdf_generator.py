@@ -222,64 +222,63 @@ class PDFGenerator:
             "Supervise children during use.",
         ]
 
+        warnings_de = [
+            "Halten Sie Abstand von Waermequellen.",
+            "Ueberschreiten Sie nicht die Gewichtsgrenzen.",
+            "Erwachsenenaufsicht beim Aufbau erforderlich.",
+            "Ueberwachen Sie Kinder waehrend der Nutzung.",
+        ]
+
+        warnings_it = [
+            "Tenere lontano da fonti di calore.",
+            "Non superare i limiti di peso.",
+            "Assemblaggio da parte di adulti obbligatorio.",
+            "Supervisionare i bambini durante l'uso.",
+        ]
+
+        warnings_fr = [
+            "Eloignez des sources de chaleur.",
+            "Ne pas depasser les limites de poids.",
+            "Assemblage par un adulte requis.",
+            "Surveiller les enfants pendant l'utilisation.",
+        ]
+
+        warnings_es = [
+            "Mantener alejado de fuentes de calor.",
+            "No exceder los limites de peso.",
+            "Se requiere ensamblaje por un adulto.",
+            "Supervisar a los ninos durante el uso.",
+        ]
+
         warnings_jp = [
-            warnings_de = [
-                "Halten Sie Abstand von Waermequellen.",
-                "Ueberschreiten Sie nicht die Gewichtsgrenzen.",
-                "Erwachsenenaufsicht beim Aufbau erforderlich.",
-                "Ueberwachen Sie Kinder waehrend der Nutzung.",
-            ]
+            "熱源から離してください。",
+            "重量制限を超えないでください。",
+            "大人の組立が必要です。",
+            "使用中は子供の監視をしてください。",
+        ]
 
-            warnings_it = [
-                "Tenere lontano da fonti di calore.",
-                "Non superare i limiti di peso.",
-                "Assemblaggio da parte di adulti obbligatorio.",
-                "Supervisionare i bambini durante l'uso.",
-            ]
+        all_warnings = [
+            ("EN", warnings_en, None),
+            ("DE", warnings_de, None),
+            ("IT", warnings_it, None),
+            ("FR", warnings_fr, None),
+            ("ES", warnings_es, None),
+        ]
+        if font_added:
+            all_warnings.append(("JP", warnings_jp, "Chinese"))
 
-            warnings_fr = [
-                "Eloignez des sources de chaleur.",
-                "Ne pas depasser les limites de poids.",
-                "Assemblage par un adulte requis.",
-                "Surveiller les enfants pendant l'utilisation.",
-            ]
-
-            warnings_es = [
-                "Mantener alejado de fuentes de calor.",
-                "No exceder los limites de peso.",
-                "Se requiere ensamblaje por un adulto.",
-                "Supervisar a los ninos durante el uso.",
-            ]
-
-            warnings_jp = [
-                "熱源から離してください。",
-                "重量制限を超えないでください。",
-                "大人の組立が必要です。",
-                "使用中は子供の監視をしてください。",
-            ]
-
-            all_warnings = [
-                ("EN", warnings_en, None),
-                ("DE", warnings_de, None),
-                ("IT", warnings_it, None),
-                ("FR", warnings_fr, None),
-                ("ES", warnings_es, None),
-            ]
-            if font_added:
-                all_warnings.append(("JP", warnings_jp, "Chinese"))
-
-            for lang_label, warns, font_name in all_warnings:
-                pdf.set_font("Helvetica", "B", 12)
+        for lang_label, warns, font_name in all_warnings:
+            pdf.set_font("Helvetica", "B", 12)
+            pdf.set_x(pdf.l_margin)
+            pdf.multi_cell(0, 10, f"[{lang_label}]")
+            if font_name and font_added:
+                pdf.set_font(font_name, "", 10)
+            else:
+                pdf.set_font("Helvetica", "", 10)
+            for w in warns:
                 pdf.set_x(pdf.l_margin)
-                pdf.multi_cell(0, 10, f"[{lang_label}]")
-                if font_name and font_added:
-                    pdf.set_font(font_name, "", 10)
-                else:
-                    pdf.set_font("Helvetica", "", 10)
-                for w in warns:
-                    pdf.set_x(pdf.l_margin)
-                    pdf.multi_cell(0, 7, f"  - {w}")
-                pdf.ln(5)
+                pdf.multi_cell(0, 7, f"  - {w}")
+            pdf.ln(5)
 
 
         # 保存 PDF

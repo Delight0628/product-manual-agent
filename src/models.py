@@ -66,3 +66,19 @@ class TaskStatus(BaseModel):
     progress: int = 0
     message: Optional[str] = None
     pdf_path: Optional[str] = None
+
+
+class MaterialRequest(BaseModel):
+    """素材模式请求"""
+    prompt: str
+    file_ids: List[str] = []
+    output_format: str = "pdf"  # pdf / docx
+    output_lang: Optional[LanguageCode] = None
+
+
+class UploadResponse(BaseModel):
+    """文件上传响应"""
+    file_id: str
+    filename: str
+    size: int
+    content_type: str
