@@ -2,12 +2,14 @@
 
 import uuid
 import asyncio
+import json
 import logging
 from pathlib import Path
-from typing import Dict
+from typing import Dict, List
+from collections import defaultdict
 
 from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File
-from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.responses import HTMLResponse, FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 logging.basicConfig(level=logging.INFO)
@@ -80,6 +82,12 @@ app.add_middleware(
 
 # 任务存储
 tasks: Dict[str, TaskStatus] = {}
+
+# 思考过程存储 {task_id: [{"step": str, "content": str, "timestamp": float}]}
+thinking_processes: Dict[str, List[Dict]] = defaultdict(list)
+
+# SSE 客户端队列 {task_id: [asyncio.Queue, ...]}
+sse_clients: Dict[str, List[asyncio.Queue]] = defaultdict(list)
 
 # 模块实例
 scraper = AmazonScraper(use_mock=True)  # Demo 模式使用 Mock 数据
@@ -176,6 +184,71 @@ async def list_files():
         # 按创建时间倒序排列（最新的在前）
         files.sort(key=lambda x: x["created"], reverse=True)
     return {"files": files}
+
+
+def _emit_thinking(task_id: str, step: str, content: str):
+    """发送思考过程到存储和 SSE 客户端"""
+    import time
+    entry = {
+        "step": step,
+        "content": content,
+        "timestamp": time.time(),
+    }
+    thinking_processes[task_id].append(entry)
+    logger.info(f"[{task_id}] 💭 {step}: {content}")
+
+    # 广播到所有 SSE 客户端
+    if task_id in sse_clients:
+        for queue in sse_clients[task_id]:
+            try:
+                queue.put_nowait(entry)
+            except asyncio.QueueFull:
+                pass  # 队列满则丢弃
+
+
+@app.get("/api/tasks/{task_id}/stream")
+async def stream_task_thinking(task_id: str):
+    """SSE 端点：实时流式输出 Agent 思考过程"""
+    if task_id not in tasks:
+        raise HTTPException(status_code=404, detail="任务不存在")
+
+    queue: asyncio.Queue = asyncio.Queue(maxsize=100)
+    sse_clients[task_id].append(queue)
+
+    async def event_generator():
+        try:
+            # 先发送已有的思考过程
+            for entry in thinking_processes.get(task_id, []):
+                yield f"data: {json.dumps(entry, ensure_ascii=False)}\n\n"
+
+            # 等待新的思考过程
+            while True:
+                try:
+                    entry = await asyncio.wait_for(queue.get(), timeout=30)
+                    yield f"data: {json.dumps(entry, ensure_ascii=False)}\n\n"
+
+                    # 如果任务完成，发送结束信号
+                    task_status = tasks.get(task_id)
+                    if task_status and task_status.status in ("done", "completed", "failed"):
+                        yield f"data: {json.dumps({'step': 'done', 'content': task_status.status}, ensure_ascii=False)}\n\n"
+                        break
+                except asyncio.TimeoutError:
+                    # 发送心跳保持连接
+                    yield f": heartbeat\n\n"
+        finally:
+            # 清理客户端
+            if task_id in sse_clients:
+                sse_clients[task_id] = [q for q in sse_clients[task_id] if q is not queue]
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @app.post("/api/upload", response_model=UploadResponse)
@@ -303,10 +376,21 @@ async def _process_material_generation(
         from src.agent.graph import run_agent
 
         # 更新进度
-        logger.info(f"[{task_id}] 📊 AI Agent 分析素材中...")
+        _emit_thinking(task_id, "初始化", "AI Agent 开始工作...")
         tasks[task_id] = tasks[task_id].model_copy(update={
             "progress": 10, "message": "AI Agent 分析素材中..."
         })
+
+        # 定义思考过程回调
+        def think_callback(step: str, content: str):
+            _emit_thinking(task_id, step, content)
+            # 同时更新任务进度消息
+            try:
+                tasks[task_id] = tasks[task_id].model_copy(update={
+                    "message": f"[{step}] {content}",
+                })
+            except Exception:
+                pass
 
         # 运行 Agent（同步调用，因为 LangGraph 的 invoke 是同步的）
         import asyncio
@@ -321,12 +405,14 @@ async def _process_material_generation(
                         user_prompt=prompt,
                         file_paths=file_paths,
                         output_format=output_format,
+                        think_callback=think_callback,
                     ),
                 ),
                 timeout=180,  # 3 分钟超时
             )
         except asyncio.TimeoutError:
             logger.error(f"[{task_id}] ⏰ Agent 执行超时（180s）")
+            _emit_thinking(task_id, "错误", "Agent 执行超时（180s）")
             tasks[task_id] = tasks[task_id].model_copy(update={
                 "status": "failed",
                 "message": "AI Agent 执行超时（3分钟），请稍后重试",
@@ -334,6 +420,7 @@ async def _process_material_generation(
             return
 
         logger.info(f"[{task_id}] ✅ Agent 执行完成")
+        _emit_thinking(task_id, "完成", "AI Agent 执行完成")
 
         # 更新进度
         tasks[task_id] = tasks[task_id].model_copy(update={
@@ -343,12 +430,14 @@ async def _process_material_generation(
         output_path = result.get("output_path")
         if output_path and Path(output_path).exists():
             logger.info(f"[{task_id}] 📄 文档已生成: {output_path}")
+            _emit_thinking(task_id, "完成", f"文档已生成: {Path(output_path).name}")
             tasks[task_id] = tasks[task_id].model_copy(update={
                 "status": "done",
                 "pdf_path": output_path,
             })
         else:
             logger.warning(f"[{task_id}] ⚠️ Agent 未能生成文件: {output_path}")
+            _emit_thinking(task_id, "错误", f"Agent 未能生成文件")
             tasks[task_id] = tasks[task_id].model_copy(update={
                 "status": "failed",
                 "message": f"Agent 未能生成文件。输出: {output_path}",
@@ -356,6 +445,7 @@ async def _process_material_generation(
 
     except Exception as e:
         logger.error(f"[{task_id}] ❌ AI Agent 生成失败: {e}")
+        _emit_thinking(task_id, "错误", f"AI Agent 生成失败: {str(e)}")
         tasks[task_id] = tasks[task_id].model_copy(update={
             "status": "failed",
             "message": f"AI Agent 生成失败: {str(e)}",

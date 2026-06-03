@@ -578,6 +578,82 @@
                 position: static;
             }
         }
+
+        /* Thinking Process */
+        .thinking-container {
+            margin-top: 16px;
+            display: none;
+        }
+
+        .thinking-container.visible {
+            display: block;
+        }
+
+        .thinking-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .thinking-title {
+            font-size: 13px;
+            font-weight: 500;
+            color: #8b8d94;
+        }
+
+        .thinking-spinner {
+            width: 12px;
+            height: 12px;
+            border: 2px solid rgba(94, 106, 210, 0.3);
+            border-radius: 50%;
+            border-top-color: #5e6ad2;
+            animation: spin 0.8s linear infinite;
+        }
+
+        .thinking-list {
+            max-height: 200px;
+            overflow-y: auto;
+            background: #0d0e10;
+            border-radius: 8px;
+            padding: 12px;
+        }
+
+        .thinking-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            padding: 6px 0;
+            font-size: 12px;
+            border-bottom: 1px solid #1a1b1e;
+        }
+
+        .thinking-item:last-child {
+            border-bottom: none;
+        }
+
+        .thinking-step {
+            color: #5e6ad2;
+            font-weight: 500;
+            min-width: 60px;
+        }
+
+        .thinking-content {
+            color: #8b8d94;
+            flex: 1;
+        }
+
+        .thinking-item.error .thinking-step {
+            color: #f85149;
+        }
+
+        .thinking-item.error .thinking-content {
+            color: #f85149;
+        }
+
+        .thinking-item.success .thinking-step {
+            color: #2ea043;
+        }
     </style>
 </head>
 <body>
@@ -627,33 +703,17 @@
                             🤖 开始 AI 生成
                         </button>
 
-                        <!-- Progress Steps -->
-                        <div class="progress-steps" id="material-progress-steps">
-                            <div class="step" id="mstep-1">
-                                <div class="step-icon">1</div>
-                                <div class="step-info">
-                                    <div class="step-title">上传素材</div>
-                                    <div class="step-desc">正在上传文件...</div>
-                                </div>
-                            </div>
-                            <div class="step" id="mstep-2">
-                                <div class="step-icon">2</div>
-                                <div class="step-info">
-                                    <div class="step-title">AI 分析与排版</div>
-                                    <div class="step-desc">AI 正在分析素材并排版...</div>
-                                </div>
-                            </div>
-                            <div class="step" id="mstep-3">
-                                <div class="step-icon">3</div>
-                                <div class="step-info">
-                                    <div class="step-title">生成文档</div>
-                                    <div class="step-desc">正在生成最终文档...</div>
-                                </div>
-                            </div>
-                        </div>
-
                         <!-- Status Message -->
                         <div class="status-message" id="material-status-message"></div>
+
+                        <!-- Thinking Process -->
+                        <div class="thinking-container" id="material-thinking">
+                            <div class="thinking-header">
+                                <div class="thinking-spinner"></div>
+                                <span class="thinking-title">AI 思考过程</span>
+                            </div>
+                            <div class="thinking-list" id="material-thinking-list"></div>
+                        </div>
                     </div>
                 </div>
 
@@ -741,6 +801,7 @@
         let outputFormat = 'pdf';
         let currentTaskId = null;
         let pollingInterval = null;
+        let sseConnection = null;
 
         // Tab Switching
         function switchTab(tab) {
@@ -766,7 +827,8 @@
         function selectFormat(el) {
             document.querySelectorAll('.format-pill').forEach(pill => pill.classList.remove('selected'));
             el.classList.add('selected');
-            outputFormat = el.dataset.format;
+            // 前端 data-format="word" 映射为后端需要的 "docx"
+            outputFormat = el.dataset.format === 'word' ? 'docx' : el.dataset.format;
         }
 
         // Demo
@@ -843,18 +905,18 @@
                 try {
                     const response = await fetch('/api/tasks/' + taskId);
                     if (!response.ok) throw new Error('获取状态失败');
-                    
+
                     const data = await response.json();
 
-                    if (data.progress) {
+                    if (stepsId && data.progress) {
                         updateSteps(stepsId, data.progress);
                     }
 
                     if (data.status === 'done' || data.status === 'completed') {
                         clearInterval(pollingInterval);
-                        updateSteps(stepsId, 3);
+                        if (stepsId) updateSteps(stepsId, 3);
                         showStatus(statusId, 'success', '✅ ' + (data.message || '生成完成！'));
-                        
+
                         const btn = document.getElementById(btnId);
                         btn.disabled = false;
                         btn.textContent = btnText;
@@ -863,7 +925,7 @@
                     } else if (data.status === 'failed') {
                         clearInterval(pollingInterval);
                         showStatus(statusId, 'error', '❌ ' + (data.message || '生成失败'));
-                        
+
                         const btn = document.getElementById(btnId);
                         btn.disabled = false;
                         btn.textContent = btnText;
@@ -991,7 +1053,9 @@
             btn.disabled = true;
             btn.innerHTML = '<span class="spinner"></span>生成中...';
 
-            document.getElementById('material-progress-steps').classList.add('visible');
+            // 清空之前的思考过程
+            clearThinkingProcess();
+
             showStatus('material-status-message', 'info', '正在提交任务...');
 
             try {
@@ -1009,15 +1073,94 @@
                 const data = await response.json();
                 currentTaskId = data.task_id;
 
-                updateSteps('material-progress-steps', 1);
                 showStatus('material-status-message', 'info', '任务已提交，正在处理...');
 
-                pollTask(currentTaskId, 'material-progress-steps', 'material-status-message', 'generate-material-btn', '🤖 开始 AI 生成');
+                // 连接 SSE 实时获取思考过程
+                connectSSE(currentTaskId);
+
+                pollTask(currentTaskId, null, 'material-status-message', 'generate-material-btn', '🤖 开始 AI 生成');
             } catch (err) {
                 showStatus('material-status-message', 'error', '错误: ' + err.message);
                 btn.disabled = false;
                 btn.textContent = '🤖 开始 AI 生成';
             }
+        }
+
+        // SSE 连接
+        function connectSSE(taskId) {
+            // 关闭之前的连接
+            if (sseConnection) {
+                sseConnection.close();
+            }
+
+            const thinkingContainer = document.getElementById('material-thinking');
+            const thinkingList = document.getElementById('material-thinking-list');
+
+            thinkingContainer.classList.add('visible');
+
+            // 使用 EventSource 连接 SSE
+            sseConnection = new EventSource('/api/tasks/' + taskId + '/stream');
+
+            sseConnection.onmessage = function(event) {
+                try {
+                    const data = JSON.parse(event.data);
+
+                    if (data.step === 'done') {
+                        // 任务完成
+                        sseConnection.close();
+                        sseConnection = null;
+                        // 更新 spinner 为完成状态
+                        thinkingContainer.querySelector('.thinking-spinner').style.display = 'none';
+                        return;
+                    }
+
+                    // 添加思考过程条目
+                    const item = document.createElement('div');
+                    item.className = 'thinking-item';
+
+                    if (data.step === '错误') {
+                        item.classList.add('error');
+                    } else if (data.step === '完成') {
+                        item.classList.add('success');
+                    }
+
+                    item.innerHTML = `
+                        <span class="thinking-step">${escapeHtml(data.step)}</span>
+                        <span class="thinking-content">${escapeHtml(data.content)}</span>
+                    `;
+
+                    thinkingList.appendChild(item);
+
+                    // 自动滚动到底部
+                    thinkingList.scrollTop = thinkingList.scrollHeight;
+                } catch (e) {
+                    console.error('SSE parse error:', e);
+                }
+            };
+
+            sseConnection.onerror = function(error) {
+                console.error('SSE error:', error);
+                sseConnection.close();
+                sseConnection = null;
+            };
+        }
+
+        // 清空思考过程
+        function clearThinkingProcess() {
+            const thinkingContainer = document.getElementById('material-thinking');
+            const thinkingList = document.getElementById('material-thinking-list');
+            const spinner = thinkingContainer.querySelector('.thinking-spinner');
+
+            thinkingContainer.classList.remove('visible');
+            thinkingList.innerHTML = '';
+            spinner.style.display = '';
+        }
+
+        // HTML 转义
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
 
         // Load History

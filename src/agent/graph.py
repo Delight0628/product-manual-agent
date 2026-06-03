@@ -2,7 +2,7 @@
 
 import json
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Callable, Optional
 
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 from langgraph.graph import StateGraph, END
@@ -29,6 +29,28 @@ TOOLS = [
 ]
 
 MAX_STEPS = 10  # 防止 Agent 死循环
+
+# 全局思考过程回调（用于 SSE 流式输出）
+_think_callback: Optional[Callable[[str, str], None]] = None
+
+
+def set_think_callback(callback: Callable[[str, str], None]):
+    """设置思考过程回调函数，用于实时流式输出
+
+    Args:
+        callback: 回调函数，接收 (step_name, content) 两个参数
+    """
+    global _think_callback
+    _think_callback = callback
+
+
+def _emit_think(step: str, content: str):
+    """发送思考过程到回调"""
+    if _think_callback:
+        try:
+            _think_callback(step, content)
+        except Exception:
+            pass  # 回调失败不影响主流程
 
 
 def _call_llm(state: AgentState, prompt: str, max_retries: int = 2) -> str:
@@ -61,17 +83,26 @@ def analyze_input(state: AgentState) -> dict:
     file_paths = state.get("file_paths", [])
     user_prompt = state.get("user_prompt", "")
 
+    _emit_think("分析素材", f"正在分析 {len(file_paths)} 个文件...")
+
     contents = []
     for fp in file_paths:
         path = Path(fp)
+        _emit_think("分析素材", f"处理文件: {path.name}")
         if path.suffix.lower() in (".jpg", ".jpeg", ".png", ".gif", ".webp"):
             # 图片文件：用 LLM 分析
+            _emit_think("分析素材", f"使用多模态 LLM 分析图片: {path.name}")
             desc = analyze_image.invoke({"image_path": fp})
             contents.append(f"[图片 {path.name}]\n{desc}")
+            _emit_think("分析素材", f"✓ 图片分析完成: {path.name}")
         else:
             # 文本文件：直接提取
+            _emit_think("分析素材", f"提取文本内容: {path.name}")
             text = extract_text_from_file.invoke({"file_path": fp})
             contents.append(f"[文件 {path.name}]\n{text[:3000]}")  # 限制长度
+            _emit_think("分析素材", f"✓ 文本提取完成: {path.name} ({len(text)} 字符)")
+
+    _emit_think("分析素材", f"✓ 共提取 {len(contents)} 个文件内容")
 
     return {
         "extracted_contents": contents,
@@ -84,12 +115,17 @@ def plan_layout(state: AgentState) -> dict:
     extracted = "\n\n".join(state.get("extracted_contents", []))
     user_prompt = state.get("user_prompt", "")
 
+    _emit_think("规划结构", "正在根据素材和用户要求规划文档结构...")
+    _emit_think("规划结构", f"用户指令: {user_prompt[:100]}")
+
     prompt = PLAN_PROMPT.format(
         user_prompt=user_prompt,
         extracted_contents=extracted[:5000],
     )
 
+    _emit_think("规划结构", "调用 LLM 进行文档结构规划...")
     plan = _call_llm(state, prompt)
+    _emit_think("规划结构", f"✓ 文档结构规划完成")
 
     return {
         "document_plan": plan,
@@ -102,6 +138,8 @@ def generate_content(state: AgentState) -> dict:
     extracted = "\n\n".join(state.get("extracted_contents", []))
     plan = state.get("document_plan", "")
     user_prompt = state.get("user_prompt", "")
+
+    _emit_think("生成内容", "正在生成 HTML 文档内容...")
 
     prompt = f"""根据以下信息生成完整的 HTML 文档。
 
@@ -124,12 +162,14 @@ def generate_content(state: AgentState) -> dict:
     llm = get_llm_safe(temperature=0.3)
     if not llm:
         # 回退模式：直接组装内容
+        _emit_think("生成内容", "LLM 不可用，使用回退模式...")
         html = _fallback_html(state)
         return {
             "generated_html": html,
             "messages": [AIMessage(content="LLM 不可用，使用回退模式生成。")],
         }
 
+    _emit_think("生成内容", "调用 LLM 生成 HTML 文档...")
     messages = [SystemMessage(content=SYSTEM_PROMPT)] + state.get("messages", []) + [
         HumanMessage(content=prompt)
     ]
@@ -141,6 +181,8 @@ def generate_content(state: AgentState) -> dict:
         html = html.split("```html")[1].split("```")[0]
     elif "```" in html:
         html = html.split("```")[1].split("```")[0]
+
+    _emit_think("生成内容", f"✓ HTML 文档生成完成 ({len(html)} 字符)")
 
     return {
         "generated_html": html.strip(),
@@ -154,12 +196,15 @@ def render_document(state: AgentState) -> dict:
     output_format = state.get("output_format", "pdf")
 
     if not html:
+        _emit_think("渲染文档", "无内容可渲染")
         return {"output_path": None, "messages": [AIMessage(content="无内容可渲染。")]}
 
     # 生成文件名
     from datetime import datetime
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"ai_doc_{timestamp}"
+
+    _emit_think("渲染文档", f"正在渲染 {output_format.upper()} 文件...")
 
     if output_format == "docx":
         result = render_to_docx.invoke({
@@ -171,6 +216,8 @@ def render_document(state: AgentState) -> dict:
             "html_content": html,
             "output_filename": f"{filename}.pdf",
         })
+
+    _emit_think("渲染文档", f"✓ 文档渲染完成: {Path(result).name if result else '失败'}")
 
     return {
         "output_path": result,
@@ -249,20 +296,35 @@ def build_graph():
 
 # === 便捷入口 ===
 
-def run_agent(user_prompt: str, file_paths: list, output_format: str = "pdf") -> dict:
-    """运行 Agent，返回结果"""
-    graph = build_graph()
+def run_agent(user_prompt: str, file_paths: list, output_format: str = "pdf",
+              think_callback: Optional[Callable[[str, str], None]] = None) -> dict:
+    """运行 Agent，返回结果
 
-    initial_state: AgentState = {
-        "user_prompt": user_prompt,
-        "file_paths": file_paths,
-        "output_format": output_format,
-        "extracted_contents": [],
-        "document_plan": None,
-        "generated_html": None,
-        "output_path": None,
-        "messages": [],
-    }
+    Args:
+        user_prompt: 用户指令
+        file_paths: 素材文件路径列表
+        output_format: 输出格式 (pdf/docx)
+        think_callback: 思考过程回调函数，接收 (step_name, content)
+    """
+    # 设置回调
+    set_think_callback(think_callback)
 
-    result = graph.invoke(initial_state, {"recursion_limit": MAX_STEPS})
-    return result
+    try:
+        graph = build_graph()
+
+        initial_state: AgentState = {
+            "user_prompt": user_prompt,
+            "file_paths": file_paths,
+            "output_format": output_format,
+            "extracted_contents": [],
+            "document_plan": None,
+            "generated_html": None,
+            "output_path": None,
+            "messages": [],
+        }
+
+        result = graph.invoke(initial_state, {"recursion_limit": MAX_STEPS})
+        return result
+    finally:
+        # 清除回调
+        set_think_callback(None)
